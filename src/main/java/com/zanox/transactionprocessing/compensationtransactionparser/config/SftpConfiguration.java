@@ -1,11 +1,13 @@
-package com.zanox.transactionprocessing.compensationtransactionparser;
+package com.zanox.transactionprocessing.compensationtransactionparser.config;
 
 import java.io.File;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 import org.springframework.integration.annotation.Poller;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -24,7 +26,8 @@ import org.springframework.messaging.MessagingException;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
 
 @Configuration
-public class SftpConfig {
+@Profile({"production", "staging", "development", "default"})
+public class SftpConfiguration {
 
     @Value("${sftp.host}")
     private String sftpHost;
@@ -38,6 +41,9 @@ public class SftpConfig {
     @Value("${sftp.privateKey:#{null}}")
     private Resource sftpPrivateKey;
 
+//    @Value("${sftpPrivateKeyPath:#{null}}")
+//    private String sftpPrivateKeyPath;
+
     @Value("${sftp.privateKeyPassphrase:}")
     private String sftpPrivateKeyPassphrase;
 
@@ -47,18 +53,22 @@ public class SftpConfig {
     @Value("${sftp.remote.directory.download:/}")
     private String sftpRemoteDirectoryDownload;
 
-    @Value("${sftp.local.directory.download:${java.io.tmpdir}/localDownload}")
-    private String sftpLocalDirectoryDownload;
+    @Value("${sftp.backup.directory.download:${java.io.tmpdir}/localDownload}")
+    private String sftpBackupDirectoryDownload;
 
     @Value("${sftp.remote.directory.download.filter:*.*}")
     private String sftpRemoteDirectoryDownloadFilter;
 
     @Bean
     public SessionFactory<LsEntry> sftpSessionFactory() {
+
+//        Resource sftpPrivateKey = new FileSystemResource(sftpPrivateKeyPath);
+
         DefaultSftpSessionFactory factory = new DefaultSftpSessionFactory(true);
         factory.setHost(sftpHost);
         factory.setPort(sftpPort);
         factory.setUser(sftpUser);
+
         if (sftpPrivateKey != null) {
             factory.setPrivateKey(sftpPrivateKey);
             factory.setPrivateKeyPassphrase(sftpPrivateKeyPassphrase);
@@ -66,6 +76,7 @@ public class SftpConfig {
             factory.setPassword(sftpPasword);
         }
         factory.setAllowUnknownKeys(true);
+
         return new CachingSessionFactory<LsEntry>(factory);
     }
 
@@ -76,6 +87,7 @@ public class SftpConfig {
         fileSynchronizer.setRemoteDirectory(sftpRemoteDirectoryDownload);
         fileSynchronizer
                 .setFilter(new SftpSimplePatternFileListFilter(sftpRemoteDirectoryDownloadFilter));
+
         return fileSynchronizer;
     }
 
@@ -84,9 +96,10 @@ public class SftpConfig {
     public MessageSource<File> sftpMessageSource() {
         SftpInboundFileSynchronizingMessageSource source = new SftpInboundFileSynchronizingMessageSource(
                 sftpInboundFileSynchronizer());
-        source.setLocalDirectory(new File(sftpLocalDirectoryDownload));
+        source.setLocalDirectory(new File(sftpBackupDirectoryDownload));
         source.setAutoCreateLocalDirectory(true);
         source.setLocalFilter(new AcceptOnceFileListFilter<File>());
+
         return source;
     }
 

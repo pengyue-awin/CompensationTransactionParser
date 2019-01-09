@@ -28,15 +28,23 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-@TestPropertySource(properties = { "sftp.port = 10022", "sftp.remote.directory.download.filter=*.xxx"})
-public class AppTests {
+@TestPropertySource(
+    properties = {
+        "sftp.port = 10022",
+        "sftp.remote.directory.download.filter=*.xxx",
+        "sftp.remote.directory.download=/",
+        "sftp.privateKey=classpath:keys/sftp_rsa",
+//        "sftp.privateKeyPath=/Users/peng-awin/Work/Awin/CompensationTransactionParser/src/test/resources/keys/sftp_rsa",
+        "sftp.privateKeyPassphrase=passphrase"
+    })
+public class SftpTest {
 
     private static EmbeddedSftpServer server;
 
     private static Path sftpFolder;
 
-    @Value("${sftp.local.directory.download}")
-    private String localDirectoryDownload;
+    @Value("${sftp.backup.directory.download}")
+    private String backupDirectoryDownload;
 
 
     @BeforeClass
@@ -55,7 +63,7 @@ public class AppTests {
     @Before
     @After
     public void clean() throws IOException {
-        Files.walk(Paths.get(localDirectoryDownload)).filter(Files::isRegularFile).map(Path::toFile)
+        Files.walk(Paths.get(backupDirectoryDownload)).filter(Files::isRegularFile).map(Path::toFile)
                 .forEach(File::delete);
     }
 
@@ -69,7 +77,7 @@ public class AppTests {
         Future<Boolean> future = Executors.newSingleThreadExecutor().submit(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                Path expectedFile = Paths.get(localDirectoryDownload).resolve(tempFile.getFileName());
+                Path expectedFile = Paths.get(backupDirectoryDownload).resolve(tempFile.getFileName());
                 while (!Files.exists(expectedFile)) {
                     Thread.sleep(200);
                 }
